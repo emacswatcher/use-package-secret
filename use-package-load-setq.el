@@ -130,8 +130,7 @@
 Normal form is (variable . filename)"
   (when use-package-load-setq-verbose
     (upls-normalization-msg name label args))
-  (let ((arg (if (listp args)
-                 args
+  (let ((arg (unless (listp args)
                (list args)))
         (must nil)
         (verbose use-package-load-setq-verbose)
@@ -147,8 +146,7 @@ Normal form is (variable . filename)"
                              must
                              verbose)
                        args*))
-          (setq arg (cdr arg))
-          )
+          (setq arg (cdr arg)))
          ;; (setq arg (append (list (cons x
          ;;                               (upls-default-filename name x verbose)))
          ;;                   (cdr arg))))
@@ -179,7 +177,7 @@ Normal form is (variable . filename)"
 
          ((listp x)
           (setq args*
-                (push (upls-normalize name label x) *args))
+                (push (upls-normalize name label x) args*))
           (setq arg (cdr arg)))
          ((and (consp x)
                (or must
