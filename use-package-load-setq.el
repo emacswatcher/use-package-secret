@@ -27,26 +27,23 @@
 ;; use-package. Provides support for the :load-setq keyword. It
 ;; supports the following arguments:
 
-;; 1. The two basic forms
+;; 1. The basic form
 
 ;; :load-setq variable ...
 
 ;; - The variable should be unquoted.
 ;; - A filename will be generated from the package name and variable name.
 
-;; :load-setq (variable . filename) ...
-
 ;; 2. :Must and :may decorators
 
-;; :load-setq [ :must ] [ variable | ( variable . filename ) ] ...
+;; :load-setq [ :must ] [ variable ] ...
 
-;; :load-setq [ :may ] [ variable | ( variable . filename ) ] ...
+;; :load-setq [ :may ] [ variable ] ...
 
 ;; ':Must' and ’:may’ are on and off switches which control the same
 ;; internal processing state. When the state is ':must', an error will
-;; be signalled by use-package if the filename, whether specified or
-;; generated (depending on which basic form is provided) does not
-;; exist. ':May'-decorated forms will fail silently if the file is not
+;; be signalled by use-package if the variable cannot be set.
+;; ':May'-decorated forms will fail silently if the file is not
 ;; present. The default state is ':may'.
 
 ;; There is also a customizable boolean
@@ -55,7 +52,7 @@
 
 ;; 3. :Verbose decorator
 
-;; :load-setq :verbose [ variable | ( variable . filename ) ]
+;; :load-setq :verbose [ variable ]
 
 ;; The :verbose decorator enables extra logging.
 
@@ -68,7 +65,7 @@
 ;; decorators. A new context resets the decorated states to their
 ;; defaults, i.e. ':may' and no extra logging.
 
-;; :load-setq (:must tom dick :verbose (harry . "~/harry.el")) :verbose diane
+;; :load-setq (:must tom dick :verbose harry ) :verbose diane
 
 ;; In this example, ':must' applies to tom, dick and harry. Harry will
 ;; have ':verbose' logging. diane will be processed with ':may' and
@@ -84,7 +81,7 @@
   "Provide a use-package keyword to configure non-custom variables."
   :group 'use-package
   :prefix "use-package-load-setq-"
-  :version "0.1")
+  :version "0.2")
 
 (defcustom use-package-load-setq-verbose nil
   "If non-nil, log everything."
@@ -112,14 +109,12 @@
   "Wrap standard message for NAME LABEL ARGS."
   (upls-message "normalizing %s %s %s" name label args))
 
-(defun upls-default-filename (name variable verbose)
+(defun upls-default-filename (name verbose)
   "Make filename for NAME / VARIABLE and optionally be VERBOSE about it."
   (let ((filename (convert-standard-filename
                    (concat user-emacs-directory
                            (use-package-as-string name)
-                           "/"
-                           (use-package-as-string variable)
-                           ".el"))))
+                           "/load-setq.el"))))
     (when verbose
       (upls-message "filename for %s is %s" variable filename))
     filename))
@@ -127,7 +122,7 @@
 (defun upls-normalize (name label args &optional recurse)
   "Normalize values for package NAME LABEL, and ARGS, possibly RECURSE.
 
-Normal form is (variable . filename)"
+Normal form is (variable)"
   (when use-package-load-setq-verbose
     (upls-normalization-msg name label args))
   (let ((arg (unless (listp args)
@@ -142,20 +137,10 @@ Normal form is (variable . filename)"
          ((use-package-non-nil-symbolp x)
           (setq args* (push
                        (list x
-                             (upls-default-filename name x verbose)
+                             name
                              must
                              verbose)
                        args*))
-          (setq arg (cdr arg)))
-         ;; (setq arg (append (list (cons x
-         ;;                               (upls-default-filename name x verbose)))
-         ;;                   (cdr arg))))
-
-         ((and (consp x)
-               (use-package-non-nil-symbolp (car x))
-               (or (not must)
-                   (file-readable-p (cdr x))))
-          (setq args* (push (list (car x) (cdr x) must verbose) args*))
           (setq arg (cdr arg)))
 
          ((eq x :verbose)
@@ -213,15 +198,19 @@ Normal form is (variable . filename)"
         (insert-file-contents file)
         (buffer-string))))))
 
-(defun upls-process (variable file must verbose)
-  "Set VARIABLE to loaded FILE, log if MUST or VERBOSE.
+(defun upls-process (variable package must verbose)
+  "Set VARIABLE loaded from PACKAGE plist file, log if MUST or VERBOSE.
 
 If FILE does not exist, fail silently."
-  (if (file-exists-p file)
-      (setq variable (upls-load file))
-    (when (or must
-              verbose)
-      (upls-message "file %s not found" file))))
+  (let ((sym (format "use-package-load-setq-%s" package))
+        (file (upls-default-filename package)))
+    (if (file-exists-p file)
+        (progn
+          (setplist sym (upls-load file))
+          (setq variable (get sym variable)))
+      (when (or must
+                verbose)
+        (upls-message "file %s not found" file)))))
 
 ;;;###autoload
 (defun use-package-handler/:load-setq (name keyword arg rest state)
