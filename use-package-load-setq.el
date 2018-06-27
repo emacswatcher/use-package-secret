@@ -116,7 +116,7 @@
                            (use-package-as-string name)
                            "/load-setq.el"))))
     (when verbose
-      (upls-message "filename for %s is %s" variable filename))
+      (upls-message "secrets file for %s set to %s" name filename))
     filename))
 
 (defun upls-normalize (name label args &optional recurse)
@@ -125,24 +125,46 @@
 Normal form is (variable)"
   (when use-package-load-setq-verbose
     (upls-normalization-msg name label args))
-  (let ((arg (unless (listp args)
-               (list args)))
-        (must nil)
-        (verbose use-package-load-setq-verbose)
-        (mustify use-package-load-setq-mustify-mays)
-        (args* nil))
+  (let* ((arg (if (listp args)
+                  args
+                (list args)))
+         (must nil)
+         (verbose use-package-load-setq-verbose)
+         (mustify use-package-load-setq-mustify-mays)
+         (file (upls-default-filename name verbose))
+         (args* nil))
     (while arg
       (let ((x (car arg)))
         (cond
          ((use-package-non-nil-symbolp x)
           (setq args* (push
                        (list x
-                             name
+                             file
                              must
                              verbose)
                        args*))
           (setq arg (cdr arg)))
-
+         ((consp x)
+          (cond
+           ((eq (car x) :file)
+            (let ((y (cdr x)))
+              (if (and (or must
+                           mustify)
+                       (not (file-readable-p y)))
+                  (upls-error "%s must be a readable file" y)
+                (progn
+                  (setq file y)
+                  (setq arg (cdr arg))
+                  (when verbose
+                    (upls-message "secret file for %s set to %s"
+                                  (use-package-as-string name) y))
+                  )
+                ))
+            )
+           (t (upls-error "%s/%s misconfiguration at ’%s’"
+                          (use-package-as-string name)
+                          (use-package-as-string label)
+                          (car x)))))
          ((eq x :verbose)
           (setq verbose t
                 arg (cdr arg))
@@ -162,17 +184,8 @@ Normal form is (variable)"
 
          ((listp x)
           (setq args*
-                (push (upls-normalize name label x) args*))
+                (push (upls-normalize name label x) args* t))
           (setq arg (cdr arg)))
-         ((and (consp x)
-               (or must
-                   mustify)
-               (not (file-readable-p (cdr x))))
-          (upls-error
-           (format "%s/%s %s must be a readable file"
-                   (use-package-as-string name)
-                   (use-package-as-string label)
-                   (cdr x))))
          (t
           (upls-error
            (format "%s/%s misconfiguration at ’%s’"
@@ -191,40 +204,39 @@ Normal form is (variable)"
 
 (defun upls-load (file)
   "Evaluate FILE and return the result, failing silently."
-  (eval
-   (ignore-errors
-     (read-from-whole-string
-      (with-temp-buffer
-        (insert-file-contents file)
-        (buffer-string))))))
+  (ignore-errors
+    (read-from-whole-string
+     (with-temp-buffer
+       (insert-file-contents file)
+       (buffer-string)))))
 
-(defun upls-process (variable package must verbose)
+(defun upls-process (variable file must verbose)
   "Set VARIABLE loaded from PACKAGE plist file, log if MUST or VERBOSE.
 
-If FILE does not exist, fail silently."
-  (let ((sym (format "use-package-load-setq-%s" package))
-        (file (upls-default-filename package)))
-    (if (file-exists-p file)
-        (progn
-          (setplist sym (upls-load file))
-          (setq variable (get sym variable)))
-      (when (or must
-                verbose)
-        (upls-message "file %s not found" file)))))
+If FILE does not exist or is malformed, fail silently."
+  (let ((sym (format "use-package-load-setq-%s" file)))
+    (if (not (intern-soft sym))
+        (if (file-exists-p file)
+            (setplist (intern sym) (upls-load file))
+          (when (or must
+                    verbose)
+            (upls-message "file %s not found" file))))
+    (when (intern-soft sym)
+      (let* ((isym (intern-soft sym))
+             (ivar (intern-soft variable))
+             (ival (get isym ivar)))
+        (set ivar ival)
+        (when verbose
+          (upls-message "set %s to %s" ivar ival))))))
 
 ;;;###autoload
-(defun use-package-handler/:load-setq (name keyword arg rest state)
-  "NAME KEYWORD ARG REST STATE."
-  (when use-package-load-setq-verbose
-    (upls-message "use-package handler api (%s %s %s %s %s)"
-                  name keyword arg rest state))
-  (let ((body (use-package-process-keywords name rest state)))
-    (use-package-concat
-     (mapcar #'(lambda (var)
-                 '(cl-destructuring-bind (variable file must verbose) ,var
-                    (upls-process variable file must verbose)))
-             arg)
-     body)))
+(defun use-package-handler/:load-setq (name keyword args rest state)
+  "NAME KEYWORD ARGS REST STATE."
+  (use-package-concat
+   (mapcar #'(lambda (var)
+               (apply #'upls-process `,@var))
+           args)
+   (use-package-process-keywords name rest state)))
 
 (let ((pos (+ 1 (cl-position :custom use-package-keywords))))
   (setq use-package-keywords (nconc (subseq use-package-keywords 0 pos)
