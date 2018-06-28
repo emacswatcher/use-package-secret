@@ -1,4 +1,4 @@
-;;; use-package-load-setq.el --- configure per-user, non-customizeable vars in use-package
+;;; use-package-secret.el --- configure per-user, non-customizeable vars in use-package
 
 ;; Copyright (C)  2018 Emacs Watcher
 
@@ -24,21 +24,21 @@
 ;;; Commentary:
 
 ;; Idiomatically configure per-user, non-customizeable vars in
-;; use-package. Provides support for the :load-setq keyword. It
+;; use-package. Provides support for the :secret keyword. It
 ;; supports the following arguments:
 
 ;; 1. The basic form
 
-;; :load-setq variable ...
+;; :secret variable ...
 
 ;; - The variable should be unquoted.
 ;; - A filename will be generated from the package name and variable name.
 
 ;; 2. :Must and :may decorators
 
-;; :load-setq [ :must ] [ variable ] ...
+;; :secret [ :must ] [ variable ] ...
 
-;; :load-setq [ :may ] [ variable ] ...
+;; :secret [ :may ] [ variable ] ...
 
 ;; ':Must' and ’:may’ are on and off switches which control the same
 ;; internal processing state. When the state is ':must', an error will
@@ -52,12 +52,12 @@
 
 ;; 3. :Verbose decorator
 
-;; :load-setq :verbose [ variable ]
+;; :secret :verbose [ variable ]
 
 ;; The :verbose decorator enables extra logging.
 
 ;; There is also a customizable boolean
-;; ’use-package-load-setq-verbose’ which enables extra logging globally.
+;; ’use-package-secret-verbose’ which enables extra logging globally.
 
 ;; 4. Lists
 
@@ -65,7 +65,7 @@
 ;; decorators. A new context resets the decorated states to their
 ;; defaults, i.e. ':may' and no extra logging.
 
-;; :load-setq (:must tom dick :verbose harry ) :verbose diane
+;; :secret (:must tom dick :verbose harry ) :verbose diane
 
 ;; In this example, ':must' applies to tom, dick and harry. Harry will
 ;; have ':verbose' logging. diane will be processed with ':may' and
@@ -75,63 +75,66 @@
 
 (require 'use-package-core)
 
-(defconst upls-id "load-setq: ")
+(defconst use-package-secret-id "secret: ")
 
-(defgroup use-package-load-setq nil
+(defgroup use-package-secret nil
   "Provide a use-package keyword to configure non-custom variables."
   :group 'use-package
-  :prefix "use-package-load-setq-"
+  :prefix "use-package-secret-"
   :version "0.2")
 
-(defcustom use-package-load-setq-verbose nil
+(defcustom use-package-secret-verbose nil
   "If non-nil, log everything."
   :type 'boolean
-  :group 'use-package-load-setq
+  :group 'use-package-secret
   )
 
-(defcustom use-package-load-setq-mustify-mays nil
+(defcustom use-package-secret-mustify-mays nil
   "If non-nil, treat all ’may’ arguments as ’must’.
 
  If nil, only log when configuration says I :must."
   :type 'boolean
-  :group 'use-package-load-setq
+  :group 'use-package-secret
   )
 
-(defsubst upls-message (format-str &rest args)
+(defsubst use-package-secret-message (format-str &rest args)
   "Wrap FORMAT-STR and ARGS ’message’ parameters for consistency."
-  (apply #'message (append (list (concat upls-id format-str)) args)))
+  (apply #'message
+         (append (list (concat use-package-secret-id format-str)) args)))
 
-(defsubst upls-error (format-str &rest args)
+(defsubst use-package-secret-error (format-str &rest args)
   "Wrap FORMAT-STR and ARGS ’message’ parameters for consistency."
-  (apply #'use-package-error (append (list (concat upls-id format-str)) args)))
+  (apply #'use-package-error
+         (append (list (concat use-package-secret-id format-str)) args)))
 
-(defsubst upls-normalization-msg (name label args)
+(defsubst use-package-secret-normalization-msg (name label args)
   "Wrap standard message for NAME LABEL ARGS."
-  (upls-message "normalizing %s %s %s" name label args))
+  (use-package-secret-message "normalizing %s %s %s" name label args))
 
-(defun upls-default-filename (name verbose)
+(defun use-package-secret-default-filename (name verbose)
   "Make filename for NAME / VARIABLE and optionally be VERBOSE about it."
   (let ((filename (convert-standard-filename
                    (concat user-emacs-directory
                            (use-package-as-string name)
-                           "/load-setq.el"))))
+                           "/secret.el"))))
     (when verbose
-      (upls-message "secrets file for %s set to %s" name filename))
+      (use-package-secret-message
+       "secrets file for %s set to %s" name filename))
     filename))
 
-(defun upls-normalize (name label args &optional recurse)
+(defun use-package-secret-normalize (name label args &optional recurse)
   "Normalize values for package NAME LABEL, and ARGS, possibly RECURSE.
 
 Normal form is (variable)"
-  (when use-package-load-setq-verbose
-    (upls-normalization-msg name label args))
+  (when use-package-secret-verbose
+    (use-package-secret-normalization-msg name label args))
   (let* ((arg (if (listp args)
                   args
                 (list args)))
          (must nil)
-         (verbose use-package-load-setq-verbose)
-         (mustify use-package-load-setq-mustify-mays)
-         (file (upls-default-filename name verbose))
+         (verbose use-package-secret-verbose)
+         (mustify use-package-secret-mustify-mays)
+         (file (use-package-secret-default-filename name verbose))
          (args* nil))
     (while arg
       (let ((x (car arg)))
@@ -151,43 +154,44 @@ Normal form is (variable)"
               (if (and (or must
                            mustify)
                        (not (file-readable-p y)))
-                  (upls-error "%s must be a readable file" y)
+                  (use-package-secret-error "%s must be a readable file" y)
                 (progn
                   (setq file y)
                   (setq arg (cdr arg))
                   (when verbose
-                    (upls-message "secret file for %s set to %s"
-                                  (use-package-as-string name) y))
+                    (use-package-secret-message
+                     "secret file for %s set to %s"
+                     (use-package-as-string name) y))
                   )
                 ))
             )
-           (t (upls-error "%s/%s misconfiguration at ’%s’"
-                          (use-package-as-string name)
-                          (use-package-as-string label)
-                          (car x)))))
+           (t (use-package-secret-error "%s/%s misconfiguration at ’%s’"
+                                        (use-package-as-string name)
+                                        (use-package-as-string label)
+                                        (car x)))))
          ((eq x :verbose)
           (setq verbose t
                 arg (cdr arg))
           (when verbose
-            (upls-message "set verbose logging for %s" name))
+            (use-package-secret-message "set verbose logging for %s" name))
           )
          ((eq x :must)
           (setq must t
                 arg (cdr arg))
           (when verbose
-            (upls-message "set ’must’ processing for %s" name)))
+            (use-package-secret-message "set ’must’ processing for %s" name)))
          ((eq x :may)
           (setq must nil
                 arg (cdr arg))
           (when verbose
-            (upls-message "set ’may’ processing for %s" name)))
+            (use-package-secret-message "set ’may’ processing for %s" name)))
 
          ((listp x)
           (setq args*
-                (push (upls-normalize name label x) args* t))
+                (push (use-package-secret-normalize name label x) args* t))
           (setq arg (cdr arg)))
          (t
-          (upls-error
+          (use-package-secret-error
            (format "%s/%s misconfiguration at ’%s’"
                    (use-package-as-string name)
                    (use-package-as-string label)
@@ -195,14 +199,14 @@ Normal form is (variable)"
     (nreverse args*)))
 
 ;;;###autoload
-(defun use-package-normalize/:load-setq (name keyword args)
+(defun use-package-normalize/:secret (name keyword args)
   "Pass package NAME, KEYWORD being processed and any ARGS to normalizer."
-  (when use-package-load-setq-verbose
-    (upls-message "normalize api %s %s %s" name keyword args))
+  (when use-package-secret-verbose
+    (use-package-secret-message "normalize api %s %s %s" name keyword args))
   (use-package-as-one (symbol-name keyword) args
-    (apply-partially #'upls-normalize name) t))
+    (apply-partially #'use-package-secret-normalize name) t))
 
-(defun upls-load (file)
+(defun use-package-secret-load (file)
   "Evaluate FILE and return the result, failing silently."
   (ignore-errors
     (read-from-whole-string
@@ -210,39 +214,39 @@ Normal form is (variable)"
        (insert-file-contents file)
        (buffer-string)))))
 
-(defun upls-process (variable file must verbose)
+(defun use-package-secret-process (variable file must verbose)
   "Set VARIABLE loaded from PACKAGE plist file, log if MUST or VERBOSE.
 
 If FILE does not exist or is malformed, fail silently."
-  (let ((sym (format "use-package-load-setq-%s" file)))
+  (let ((sym (format "use-package-secret-%s" file)))
     (if (not (intern-soft sym))
         (if (file-exists-p file)
-            (setplist (intern sym) (upls-load file))
+            (setplist (intern sym) (use-package-secret-load file))
           (when (or must
                     verbose)
-            (upls-message "file %s not found" file))))
+            (use-package-secret-message "file %s not found" file))))
     (when (intern-soft sym)
       (let* ((isym (intern-soft sym))
              (ivar (intern-soft variable))
              (ival (get isym ivar)))
         (set ivar ival)
         (when verbose
-          (upls-message "set %s to %s" ivar ival))))))
+          (use-package-secret-message "set %s to %s" ivar ival))))))
 
 ;;;###autoload
-(defun use-package-handler/:load-setq (name keyword args rest state)
+(defun use-package-handler/:secret (name keyword args rest state)
   "NAME KEYWORD ARGS REST STATE."
   (use-package-concat
    (mapcar #'(lambda (var)
-               (apply #'upls-process `,@var))
+               (apply #'use-package-secret-process `,@var))
            args)
    (use-package-process-keywords name rest state)))
 
 (let ((pos (+ 1 (cl-position :custom use-package-keywords))))
   (setq use-package-keywords (nconc (subseq use-package-keywords 0 pos)
-                                    (list :load-setq)
+                                    (list :secret)
                                     (nthcdr (+ 1 pos) use-package-keywords))))
 
-(provide 'use-package-load-setq)
+(provide 'use-package-secret)
 
-;;; use-package-load-setq.el ends here
+;;; use-package-secret.el ends here
