@@ -1,6 +1,6 @@
 * use-package-secret
 
-** Extend use-package to set symbols from external files
+** description
 
 This extension allows configuration of symbols from external files so
 emacs init files may be made public but usernames, passwords, access
@@ -9,25 +9,82 @@ but kept private.
 
 ** Usage
 
-This package loads the contents of certain files, by default in
-’{$user-emacs-dir}/{$package-name}/secret.el’, to plist symbols, with some
-error-checking. Individual symbols are then set by looking their names
-up in the plists. 
+Idiomatically configure symbols via external files in
+use-package. Provides support for the :secret keyword. It
+supports the following arguments:
+
+*** In the init file:
+
+1. The basic form
+
+   :secret variable ...
+
+   The variable should be unquoted.
 
 
+2. :File keyword
 
+   :secret [ ( :file . absolute-filename ) ] [ variable ] ...
 
+   By default, secrets are stored in
+   {$user-emacs-dir}/{$package-name}/secret.el
 
+   In order to change the default, add a consp whose car is the
+   keyword :file and whose cdr is an absolute path to the file.
 
+3. :Must and :may keywords
 
+   :secret [ :must ] [ variable ] ...
 
+   :secret [ :may ] [ variable ] ...
 
-The original, inline version of this code loaded a
-file which contained a single ’setq’ form, but after some
-consideration this interface was deemed unsatisfactory because having
-the whole ’setq’ in the external file obscured the name of the
-variable being set, thus removing one of the joys of ’use-package’:
-all of the configuration is visible and searchable in one place.
+   ':Must' and ’:may’ are on and off switches which control the same
+   internal processing state. When the state is ':must', an error will
+   be signaled by use-package if the variable cannot be set.
+   ':May'-decorated forms will fail silently if the file is not
+   present. The default state is ':may'.
+
+   There is also a customizable boolean
+   'use-package-load-seq-mustify-mays' which will force all forms to
+   act as though they are ':must'-decorated.
+
+4. :Verbose keyword
+
+   :secret :verbose [ variable ]
+
+   The :verbose decorator enables extra logging.
+
+   There is also a customizable boolean
+   ’use-package-secret-verbose’ which enables extra logging globally.
+
+5. Lists
+
+   Organizing the parameters into lists provides a scope for all the
+   keyword decorators. A new context resets the decorated states to their
+   post-customization states.
+
+   :secret (:must tom dick :verbose harry ) :verbose diane
+
+   In this example, ':must' applies to tom, dick and harry. Harry will
+   have ':verbose' logging. diane will be processed with ':may' and
+   ':verbose'.
+
+*** In the secret file:
+
+A secret file is a plist. The keys are symbol names and the values
+are the settings. Values are NOT evaluated when loaded. 
+
+Sample:
+
+(
+ symbol-1 '("sample" "list" 1)
+ symbol-2 "sample-string-literal"
+ symbol-3 1024
+)
+
+Files are loaded once, on first use. Once a given file has been
+loaded, it will not be loaded again, even in the context of a
+nested list.
 
 ** Installation
 
@@ -42,30 +99,14 @@ using:
   M-x package-install RET use-package-secret RET
 #+END_EXAMPLE
 
-Now see [[*Post-Installation Tasks]].
-
 ** Installing from the Git Repository
 
-First, use Git to clone the use-package-secret repository:
+Use Git to clone the use-package-secret repository:
 
 #+BEGIN_SRC shell-script
   $ git clone https://github.com/emacswatcher/use-package-secret.git /your/desired/source/path
   $ cd /your/desired/source/path/use-package-secret
 #+END_SRC
 
-Then compile the libraries and generate the info manuals:
-
-#+BEGIN_SRC shell-script
-  $ make
-#+END_SRC
-
-And then, from a privileged account, to install:
-
-#+BEGIN_SRC shell-script
-  $ make install
-#+END_SRC
-
-
-
-** license
-
+** License
+GPL 3

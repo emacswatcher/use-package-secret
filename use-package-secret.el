@@ -4,7 +4,7 @@
 
 ;; Author: Emacs Watcher
 ;; Created: ew (2018-04-18):
-;; Version: 0.2
+;; Version: 0.21
 
 ;; This program is free software; you can redistribute it and/or
 ;; modify it under the terms of the GNU General Public License as
@@ -23,9 +23,11 @@
 
 ;;; Commentary:
 
-;; Idiomatically configure per-user, non-customizeable vars in
+;; Idiomatically configure symbols via external files in
 ;; use-package. Provides support for the :secret keyword. It
 ;; supports the following arguments:
+
+;; * In the init file:
 
 ;; 1. The basic form
 
@@ -34,7 +36,17 @@
 ;; - The variable should be unquoted.
 ;; - A filename will be generated from the package name and variable name.
 
-;; 2. :Must and :may decorators
+;; 2. :File keyword
+
+;; :secret [ ( :file . absolute-filename ) ] [ variable ] ...
+
+;; By default, secrets are stored in
+;; {$user-emacs-dir}/{$package-name}/secret.el
+
+;; In order to change the default, add a consp whose car is the
+;; keyword :file and whose cdr is an absolute path to the file.
+
+;; 3. :Must and :may keywords
 
 ;; :secret [ :must ] [ variable ] ...
 
@@ -50,7 +62,7 @@
 ;; 'use-package-load-seq-mustify-mays' which will force all forms to
 ;; act as though they are ':must'-decorated.
 
-;; 3. :Verbose decorator
+;; 4. :Verbose keyword
 
 ;; :secret :verbose [ variable ]
 
@@ -59,17 +71,33 @@
 ;; There is also a customizable boolean
 ;; ’use-package-secret-verbose’ which enables extra logging globally.
 
-;; 4. Lists
+;; 5. Lists
 
-;; Organizing the parameters into lists provides a context for all the
-;; decorators. A new context resets the decorated states to their
-;; defaults, i.e. ':may' and no extra logging.
+;; Organizing the parameters into lists provides a scope for all the
+;; keyword decorators. A new context resets the decorated states to their
+;; post-customization states.
 
 ;; :secret (:must tom dick :verbose harry ) :verbose diane
 
 ;; In this example, ':must' applies to tom, dick and harry. Harry will
 ;; have ':verbose' logging. diane will be processed with ':may' and
 ;; ':verbose'.
+
+;; * In the secret file:
+
+;; A secret file is a plist. The keys are symbol names and the values
+;; are the settings. Values are NOT evaluated when loaded.
+
+;; Sample:
+
+;; (
+;;  symbol-1 '("sample" "list" 1)
+;;  symbol-2 "sample-string-literal"
+;;  symbol-3 1024)
+
+;; Files are loaded once, on first use. Once a given file has been
+;; loaded, it will not be loaded again, even in the context of a
+;; nested list.
 
 ;;; Code:
 
@@ -86,6 +114,12 @@
 (defcustom use-package-secret-verbose nil
   "If non-nil, log everything."
   :type 'boolean
+  :group 'use-package-secret
+  )
+
+(defcustom use-package-secret-default-filename-fn nil
+  "Given package-name, return absolute path to secret file."
+  :type 'function
   :group 'use-package-secret
   )
 
@@ -113,10 +147,13 @@
 
 (defun use-package-secret-default-filename (name verbose)
   "Make filename for NAME / VARIABLE and optionally be VERBOSE about it."
-  (let ((filename (convert-standard-filename
-                   (concat user-emacs-directory
-                           (use-package-as-string name)
-                           "/secret.el"))))
+  (let ((filename (if (functionp use-package-secret-default-filename-fn)
+                      (funcall use-package-secret-default-filename-fn
+                               (use-package-as-string name))
+                    (convert-standard-filename
+                     (concat user-emacs-directory
+                             (use-package-as-string name)
+                             "/secret.el")))))
     (when verbose
       (use-package-secret-message
        "secrets file for %s set to %s" name filename))
