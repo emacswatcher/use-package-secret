@@ -302,11 +302,11 @@ If FILE does not exist or is malformed, fail silently."
            args)
    (use-package-process-keywords name rest state)))
 
-(let ((pos (cl-position :custom use-package-keywords)))
+(let ((pos (cl-position :custom-face use-package-keywords)))
   (setq use-package-keywords
         (append (cl-subseq use-package-keywords 0 pos)
                 (list :secret)
-                (cl-subseq pos use-package-keywords))))
+                (cl-subseq use-package-keywords pos))))
 
 (provide 'use-package-secret)
 
