@@ -10,50 +10,50 @@ but kept private.
 ** Usage
 
 Configure variables via external files in use-package. Provides support
-for the :secret keyword. It supports the following arguments:
+for the =:secret= keyword. It supports the following arguments:
 
 *** In the init file:
 
 1. The basic form
 
-   :secret variable ...
+   =:secret variable ...=
 
    The variable should be unquoted.
 
-2. :File keyword
+2. =:File= keyword
 
-   :secret [ ( :file . absolute-filename ) ] [ variable ] ...
+   =:secret [ ( :file . absolute-filename ) ] [ variable ] ...=
 
    By default, secrets are stored in
-   {$user-emacs-dir}/{$package-name}/secret.Eli
+   ={$user-emacs-dir}/{$package-name}/secret.el=
 
-   In order to change the default, add a consp whose car is the
-   keyword :file and whose cdr is an absolute path to the file.
+   In order to change the default, add a ~consp~ whose ~car~ is the
+   keyword =:file= and whose ~cdr~ is an absolute path to the file.
 
-3. :Must and :may keywords
+3. =:Must= and =:may= keywords
 
-   :secret [ :must ] [ variable ] ...
+   =:secret [ :must ] [ variable ] ...=
 
-   :secret [ :may ] [ variable ] ...
+   =:secret [ :may ] [ variable ] ...=
 
-   ':Must' and ’:may’ are on and off switches which control the same
-   internal processing state. When the state is ':must', an error will
-   be signaled by use-package if the variable cannot be set.
-   ':May'-decorated forms will fail silently if the file is not
-   present. The default state is ':may'.
-
-   There is also a customizable boolean
-   'use-package-load-seq-mustify-mays' which will force all forms to
-   act as though they are ':must'-decorated.
-
-4. :Verbose keyword
-
-   :secret :verbose [ variable ]
-
-   The :verbose decorator enables extra logging.
+   =:Must= and =:may= are on and off switches which control the same
+   internal processing state. When the state is =:must=, an error will
+   be signaled by =use-package= if the variable cannot be set.
+   =:May=-decorated forms will fail silently if the file is not
+   present. The default state is =:may=.
 
    There is also a customizable boolean
-   ’use-package-secret-verbose’ which enables extra logging globally.
+   =use-package-load-seq-mustify-mays= which will force all forms to
+   act as though they are =:must=-decorated.
+
+4. =:Verbose= keyword
+
+   =:secret :verbose [ variable ]=
+
+   The =:verbose= decorator enables extra logging.
+
+   There is also a customizable boolean
+   =use-package-secret-verbose= which enables extra logging globally.
 
 5. Lists
 
@@ -61,11 +61,11 @@ for the :secret keyword. It supports the following arguments:
    keyword decorators. A new context resets the decorated states to their
    post-customization states.
 
-   :secret (:must tom dick :verbose harry ) :verbose diane
+   =:secret (:must tom dick :verbose harry ) :verbose diane=
 
-   In this example, ':must' applies to tom, dick and harry. Harry will
-   have ':verbose' logging. diane will be processed with ':may' and
-   ':verbose'.
+   In this example, =:must= applies to tom, dick and harry. Harry will
+   have =:verbose= logging. =diane= will be processed with =:may= and
+   =:verbose=.
 
 *** In the secret file:
 
