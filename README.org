@@ -1,6 +1,6 @@
 * use-package-secret
 
-** description
+** Description
 
 This extension allows configuration of symbols from external files so
 emacs init files may be made public but usernames, passwords, access
@@ -9,9 +9,8 @@ but kept private.
 
 ** Usage
 
-Idiomatically configure symbols via external files in
-use-package. Provides support for the :secret keyword. It
-supports the following arguments:
+Configure variables via external files in use-package. Provides support
+for the :secret keyword. It supports the following arguments:
 
 *** In the init file:
 
@@ -21,13 +20,12 @@ supports the following arguments:
 
    The variable should be unquoted.
 
-
 2. :File keyword
 
    :secret [ ( :file . absolute-filename ) ] [ variable ] ...
 
    By default, secrets are stored in
-   {$user-emacs-dir}/{$package-name}/secret.el
+   {$user-emacs-dir}/{$package-name}/secret.Eli
 
    In order to change the default, add a consp whose car is the
    keyword :file and whose cdr is an absolute path to the file.
@@ -71,16 +69,18 @@ supports the following arguments:
 
 *** In the secret file:
 
-A secret file is a plist. The keys are symbol names and the values
+A secret file is a plist. The keys are variable names and the values
 are the settings. Values are NOT evaluated when loaded. 
 
 Sample:
 
+#+BEGIN_SRC emacs-lisp
 (
- symbol-1 '("sample" "list" 1)
- symbol-2 "sample-string-literal"
- symbol-3 1024
+ variable-1 '("sample" "list" 1)
+ variable-2 "sample-string-literal"
+ variable-3 1024
 )
+#+END_SRC
 
 Files are loaded once, on first use. Once a given file has been
 loaded, it will not be loaded again, even in the context of a
@@ -108,5 +108,3 @@ Use Git to clone the use-package-secret repository:
   $ cd /your/desired/source/path/use-package-secret
 #+END_SRC
 
-** License
-GPL 3

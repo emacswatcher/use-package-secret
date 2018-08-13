@@ -23,9 +23,9 @@
 
 ;;; Commentary:
 
-;; Idiomatically configure symbols via external files in
-;; use-package. Provides support for the :secret keyword. It
-;; supports the following arguments:
+;; Configure variables via external files in use-package. Provides
+;; support for the :secret keyword. It supports the following
+;; arguments:
 
 ;; * In the init file:
 
@@ -85,15 +85,15 @@
 
 ;; * In the secret file:
 
-;; A secret file is a plist. The keys are symbol names and the values
-;; are the settings. Values are NOT evaluated when loaded.
+;; A secret file is a plist. The keys are variable names and the
+;; values are the settings. Values are NOT evaluated when loaded.
 
 ;; Sample:
 
 ;; (
-;;  symbol-1 '("sample" "list" 1)
-;;  symbol-2 "sample-string-literal"
-;;  symbol-3 1024)
+;;  variable-1 '("sample" "list" 1)
+;;  variable-2 "sample-string-literal"
+;;  variable-3 1024)
 
 ;; Files are loaded once, on first use. Once a given file has been
 ;; loaded, it will not be loaded again, even in the context of a
@@ -101,6 +101,7 @@
 
 ;;; Code:
 
+(require 'cl-lib)
 (require 'use-package-core)
 
 (defconst use-package-secret-id "secret: ")
@@ -270,6 +271,28 @@ If FILE does not exist or is malformed, fail silently."
         (when verbose
           (use-package-secret-message "set %s to %s" ivar ival))))))
 
+(defun use-package-secret-process-debug (variable file must verbose)
+  "Set VARIABLE loaded from PACKAGE plist file, log if MUST or VERBOSE.
+
+If FILE does not exist or is malformed, fail silently."
+  (let ((sym (format "use-package-secret-%s" file)))
+    (if (not (intern-soft sym))
+        (if (file-exists-p file)
+            (progn
+              (setplist (intern sym) (use-package-secret-load file))
+              (use-package-secret-message "file %s loaded into symbol %s" file sym))
+          (when (or must
+                    verbose)
+            (use-package-secret-message "file %s not found" file)))
+      (use-package-secret-message "file %s containing symbol %s already cached" file sym))
+    (when (intern-soft sym)
+      (let* ((isym (intern-soft sym))
+             (ivar (intern-soft variable))
+             (ival (get isym ivar)))
+        (set ivar ival)
+        (when verbose
+          (use-package-secret-message "set %s to %s" ivar ival))))))
+
 ;;;###autoload
 (defun use-package-handler/:secret (name keyword args rest state)
   "NAME KEYWORD ARGS REST STATE."
@@ -279,10 +302,11 @@ If FILE does not exist or is malformed, fail silently."
            args)
    (use-package-process-keywords name rest state)))
 
-(let ((pos (+ 1 (cl-position :custom use-package-keywords))))
-  (setq use-package-keywords (nconc (subseq use-package-keywords 0 pos)
-                                    (list :secret)
-                                    (nthcdr (+ 1 pos) use-package-keywords))))
+(let ((pos (cl-position :custom use-package-keywords)))
+  (setq use-package-keywords
+        (append (cl-subseq use-package-keywords 0 pos)
+                (list :secret)
+                (cl-subseq pos use-package-keywords))))
 
 (provide 'use-package-secret)
 
