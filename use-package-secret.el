@@ -226,7 +226,7 @@ Normal form is (variable)"
 
          ((listp x)
           (setq args*
-                (push (use-package-secret-normalize name label x) args* t))
+                (push (use-package-secret-normalize name label x) args*))
           (setq arg (cdr arg)))
          (t
           (use-package-secret-error
